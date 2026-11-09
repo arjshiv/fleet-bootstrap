@@ -27,6 +27,8 @@ The tool profiles target arm64 and x86-64. Use an OS version supported by the un
 
 On a Mac with a graphical session, run `./bootstrap plan desktop` and `./bootstrap apply desktop` for the desktop apps. Use the standard macOS Terminal app for zsh and tmux. On a headless host, start work inside `tmux new-session -A -s work` to keep the session running when SSH disconnects.
 
+To use Tinycast on **⌘Space**, turn off **Show Spotlight search** in **System Settings → Keyboard → Keyboard Shortcuts → Spotlight**. Open Tinycast and set **Settings → General → Global Shortcuts → Show Launcher** to **⌘Space**. Enable **Launch at login** if you want the shortcut ready after a restart. [Apple keyboard shortcuts](https://support.apple.com/guide/mac-help/mchlp2864/mac) · [Tinycast setup](https://tinycast.dev/docs/)
+
 ## Shell settings
 
 The tracked [tmux settings](shell/tmux.conf) preserve the existing Ctrl-A prefix, split shortcuts, pane navigation, and status line. On a fresh machine, copy the file to `~/.tmux.conf`. For an existing tmux config, review and merge it.
