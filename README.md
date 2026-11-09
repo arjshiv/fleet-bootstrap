@@ -38,7 +38,14 @@ To get the same zsh look, install [Oh My Zsh](https://ohmyz.sh/#install) and sou
 - Run `gh auth login`, `codex login`, `claude auth login`, and `heroku login` as needed. Check with `gh auth status`, `codex login status`, `claude auth status`, and `heroku auth:whoami`.
 - Sign in to ChatGPT, Codex desktop, Claude, Edge, and 1Password through their apps. Use Edge Sync for your browser preferences. Enable the 1Password app's CLI integration if you use `op`. Grant any desktop automation permissions through macOS when prompted.
 - Run `agent-browser install` for a fresh browser, or `agent-browser install --with-deps` when Linux browser libraries are also needed. Then run `agent-browser --session fleet-smoke open about:blank` followed by `agent-browser --session fleet-smoke close`. [Agent-browser installation](https://agent-browser.dev/installation)
-- On arm64 Linux, use your distro's Chromium package. On Ubuntu, install it with `sudo snap install chromium`, then run the smoke check with `--executable-path /snap/bin/chromium` before `open`. Set `AGENT_BROWSER_EXECUTABLE_PATH` to the same path if you want it in every session.
+- On arm64 Linux, use your distro's Chromium package. On Ubuntu, install it with `sudo snap install chromium`. Snap Chromium needs a browser profile inside its own data directory so agent-browser can connect.
+
+  ```sh
+  mkdir -p "$HOME/snap/chromium/common"
+  profile=$(mktemp -d "$HOME/snap/chromium/common/agent-browser.XXXXXXXX")
+  agent-browser --session fleet-smoke-arm --executable-path /snap/bin/chromium --profile "$profile" open about:blank
+  agent-browser --session fleet-smoke-arm close
+  ```
 
 Keep machine identities, private SSH keys, login tokens, browser profiles, agent history, and application secrets in their own account or machine storage. Track only reviewed, portable agent settings and skills here.
 
