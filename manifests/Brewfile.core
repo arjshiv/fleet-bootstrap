@@ -1,0 +1,6 @@
+brew "git"
+brew "gh"
+brew "zsh"
+brew "tmux"
+brew "jq"
+brew "ripgrep"

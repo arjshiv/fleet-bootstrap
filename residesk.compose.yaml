@@ -1,0 +1,31 @@
+name: fleet-residesk
+services:
+  postgres:
+    image: postgres:14.24
+    environment:
+      POSTGRES_USER: ${FLEET_PG_USER:?set a local dev role}
+      POSTGRES_DB: ${FLEET_PG_DB:?set a local dev database}
+      POSTGRES_PASSWORD: ${FLEET_PG_PASSWORD:?set a local dev password}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  valkey:
+    image: valkey/valkey:9.1.3
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  pgdata:
+  valkeydata:

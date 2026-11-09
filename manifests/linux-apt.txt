@@ -1,0 +1,9 @@
+build-essential
+ca-certificates
+curl
+gh
+git
+jq
+ripgrep
+tmux
+zsh

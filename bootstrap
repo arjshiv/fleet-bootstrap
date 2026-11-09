@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() { printf 'fleet: %s\n' "$*" >&2; exit 1; }
+
+case "${1:-}" in
+  -h|--help) printf 'Usage: ./bootstrap [plan|apply|doctor] [core|tools|desktop]\n'; exit ;;
+esac
+action=${1:-plan}
+profile=${2:-core}
+case "$action" in plan|apply|doctor) ;; *) die "Unknown action: $action" ;; esac
+case "$profile" in core|tools|desktop) ;; *) die "Unknown profile: $profile" ;; esac
+[[ $# -le 2 ]] || die 'Usage: ./bootstrap [plan|apply|doctor] [core|tools|desktop]'
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+manifests="$root/manifests"
+# shellcheck source=manifests/versions
+source "$manifests/versions"
+FLEET_HOME=${FLEET_HOME:-"$HOME/.local/share/fleet"}
+case "$FLEET_HOME" in /*) ;; *) die 'FLEET_HOME must be an absolute path' ;; esac
+export FLEET_HOME
+
+case "$(uname -s)" in
+  Darwin) os=darwin ;;
+  Linux) os=linux ;;
+  *) die 'Supported systems are macOS and glibc Linux' ;;
+esac
+case "$(uname -m)" in
+  arm64|aarch64) arch=arm64 ;;
+  x86_64) arch=x64 ;;
+  *) die 'Supported CPU architectures are arm64 and x86_64' ;;
+esac
+if [[ $os == darwin && $(sysctl -n sysctl.proc_translated 2>/dev/null || :) == 1 ]]; then
+  die 'Open a native Apple Silicon terminal before running setup'
+fi
+if [[ $os == linux ]]; then
+  getconf GNU_LIBC_VERSION >/dev/null 2>&1 || die 'The managed Node release requires glibc'
+  linux_id=$(sed -n 's/^ID=//p' /etc/os-release 2>/dev/null | tr -d '"' || :)
+  case "$linux_id" in
+    ubuntu|debian) ;;
+    *) [[ $profile != core ]] || die 'Use the tools profile and install your distro packages separately' ;;
+  esac
+  [[ $profile != desktop ]] || die 'The desktop profile requires macOS'
+fi
+archive="node-v$NODE_VERSION-$os-$arch.tar.gz"
+node_home="$FLEET_HOME/node-v$NODE_VERSION-$os-$arch"
+
+find_brew() {
+  local candidate
+  if command -v brew >/dev/null; then command -v brew; return; fi
+  for candidate in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+    if [[ -x $candidate ]]; then printf '%s\n' "$candidate"; return; fi
+  done
+  return 1
+}
+
+desktop_entries() {
+  local macos_major
+  macos_major=$(sw_vers -productVersion | cut -d . -f 1)
+  awk -F '|' -v arch="$arch" -v version="$macos_major" '
+    $1 == "all" || (arch == "arm64" && ($1 == "arm64" || ($1 == "arm64-26" && version >= 26))) {
+      print $2 "|" $3
+    }
+  ' "$manifests/macos-desktop.txt"
+}
+
+desktop() {
+  local brew name artifact installed_casks
+  local -a missing_casks
+  brew=$(find_brew) || die 'Install Homebrew and Apple Command Line Tools first. See README.md.'
+  installed_casks=$(HOMEBREW_NO_AUTO_UPDATE=1 "$brew" list --cask -1)
+  missing_casks=()
+  while IFS='|' read -r name artifact; do
+    if grep -Fxq -- "$name" <<< "$installed_casks" ||
+      [[ -d "/Applications/$artifact" || -d "$HOME/Applications/$artifact" ]] ||
+      [[ $artifact == op && $(command -v op) ]]; then
+      printf '%-20s installed\n' "$name"
+    else
+      printf '%-20s missing\n' "$name"
+      missing_casks+=("$name")
+    fi
+  done < <(desktop_entries)
+  if [[ ${#missing_casks[@]} -gt 0 ]]; then
+    [[ $action == apply ]] || return 1
+    HOMEBREW_NO_AUTO_UPDATE=1 "$brew" install --cask "${missing_casks[@]}"
+  fi
+}
+
+show_plan() {
+  if [[ $profile == desktop ]]; then
+    desktop_entries | cut -d '|' -f 1
+    return
+  fi
+  if [[ $profile == core ]]; then
+    if [[ $os == darwin ]]; then
+      cat "$manifests/Brewfile.core"
+    else
+      cat "$manifests/linux-apt.txt"
+    fi
+  fi
+  printf '\nManaged tools in %s\nNode %s\nuv %s\nPython %s (install separately with uv)\n' \
+    "$FLEET_HOME" "$NODE_VERSION" "$UV_VERSION" "$PYTHON_VERSION"
+  awk '{print $1, $3}' "$manifests/npm-tools.txt"
+}
+
+show_version() {
+  local name=$1 wanted=$2 result
+  shift 2
+  if result=$("$@" 2>/dev/null); then
+    printf '%-16s %s\n' "$name" "${result%%$'\n'*}"
+  else
+    printf '%-16s missing or failed\n' "$name"
+    missing=1
+    return
+  fi
+  if [[ -n $wanted && ! $result =~ (^|[^[:digit:].])${wanted//./\\.}([^[:digit:].]|$) ]]; then
+    printf '  expected %s\n' "$wanted"
+    missing=1
+  fi
+}
+
+doctor() {
+  local missing=0 name package version
+  if [[ $profile == desktop ]]; then
+    desktop
+    return
+  fi
+  if [[ $profile == core ]]; then
+    for name in git gh zsh jq rg; do
+      show_version "$name" '' "$name" --version
+    done
+    show_version tmux '' tmux -V
+  fi
+  show_version node "$NODE_VERSION" node --version
+  show_version uv "$UV_VERSION" uv --version
+  while read -r name package version; do
+    show_version "$name" "$version" "$name" --version
+  done < "$manifests/npm-tools.txt"
+  return "$missing"
+}
+
+install_system() {
+  local brew pkg
+  local -a packages privilege
+  if [[ $os == darwin ]]; then
+    brew=$(find_brew) || die 'Install Homebrew and Apple Command Line Tools first. See README.md.'
+    HOMEBREW_NO_AUTO_UPDATE=1 "$brew" bundle install --no-upgrade --file="$manifests/Brewfile.core"
+  else
+    packages=()
+    while IFS= read -r pkg; do
+      if [[ $(dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null || :) != 'install ok installed' ]]; then
+        packages+=("$pkg")
+      fi
+    done < "$manifests/linux-apt.txt"
+    if [[ ${#packages[@]} -gt 0 ]]; then
+      privilege=(sudo)
+      if [[ $EUID == 0 ]]; then privilege=(); fi
+      "${privilege[@]}" apt-get update
+      "${privilege[@]}" apt-get install -y "${packages[@]}"
+    fi
+  fi
+}
+
+install_tools() {
+  local scratch checksum target name package version installed npm
+  local -a specs
+  mkdir -p "$FLEET_HOME"
+  mkdir "$FLEET_HOME/.install-lock" 2>/dev/null || die "Another setup may be running. Inspect $FLEET_HOME/.install-lock."
+  # The directory is exclusively owned by this run. Keep scratch on the same filesystem.
+  trap 'rm -rf -- "$FLEET_HOME/.install-lock"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  scratch="$FLEET_HOME/.install-lock"
+  if [[ ! -e $node_home ]]; then
+    checksum=$(awk -v file="$archive" '$2 == file { print $1 }' "$manifests/node-sha256.txt")
+    [[ $checksum =~ ^[a-f0-9]{64}$ ]] || die "Missing Node checksum for $archive"
+    curl -fLSs --retry 2 "https://nodejs.org/dist/v$NODE_VERSION/$archive" -o "$scratch/$archive"
+    if [[ $os == darwin ]]; then
+      (cd "$scratch" && printf '%s  %s\n' "$checksum" "$archive" | shasum -a 256 -c -)
+    else
+      (cd "$scratch" && printf '%s  %s\n' "$checksum" "$archive" | sha256sum -c -)
+    fi
+    tar -xzf "$scratch/$archive" -C "$scratch"
+    target="$scratch/${archive%.tar.gz}"
+    [[ $("$target/bin/node" --version) == "v$NODE_VERSION" ]] || die 'Downloaded Node failed version check'
+    mv "$target" "$node_home"
+  fi
+  [[ $("$node_home/bin/node" --version) == "v$NODE_VERSION" ]] || die "Unexpected Node binary in $node_home"
+  if [[ ! -L "$FLEET_HOME/node" && -e "$FLEET_HOME/node" ]]; then
+    die "$FLEET_HOME/node exists and is not a symlink"
+  fi
+  if [[ $(readlink "$FLEET_HOME/node" || :) != "$node_home" ]]; then
+    ln -sfn "$node_home" "$FLEET_HOME/node"
+  fi
+
+  # shellcheck source=shell/env.sh
+  source "$root/shell/env.sh"
+  npm="$node_home/bin/npm"
+  specs=()
+  while read -r name package version; do
+    installed=$("$FLEET_HOME/npm/bin/$name" --version 2>/dev/null || :)
+    if [[ ! $installed =~ (^|[^[:digit:].])${version//./\\.}([^[:digit:].]|$) ]]; then
+      specs+=("$package@$version")
+    fi
+  done < "$manifests/npm-tools.txt"
+  if [[ ${#specs[@]} -gt 0 ]]; then
+    "$npm" install --global --prefix "$FLEET_HOME/npm" --include=optional \
+      --registry https://registry.npmjs.org --no-fund --no-audit "${specs[@]}"
+  fi
+  installed=$("$FLEET_HOME/bin/uv" --version 2>/dev/null || :)
+  if [[ $installed != "uv $UV_VERSION" && $installed != "uv $UV_VERSION "* ]]; then
+    curl -fLSs --retry 2 "https://astral.sh/uv/$UV_VERSION/install.sh" -o "$scratch/uv-installer.sh"
+    UV_INSTALL_DIR="$FLEET_HOME/bin" UV_NO_MODIFY_PATH=1 sh "$scratch/uv-installer.sh"
+  fi
+  cp "$root/shell/env.sh" "$FLEET_HOME/env.sh"
+  printf '\nActivate in your shell with . "%s/env.sh"\n\n' "$FLEET_HOME"
+  profile=tools doctor
+}
+
+printf '%s / %s-%s\n\n' "$profile" "$os" "$arch"
+case "$action" in
+  plan) show_plan ;;
+  doctor) doctor ;;
+  apply)
+    if [[ $profile == desktop ]]; then
+      desktop
+    else
+      if [[ $profile == core ]]; then install_system; fi
+      install_tools
+    fi
+    ;;
+esac
