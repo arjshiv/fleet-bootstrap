@@ -6,7 +6,7 @@ Use this checkout to set up a fresh coding machine or check an existing one. The
 | --- | --- |
 | `core` | Git, GitHub CLI, zsh, tmux, jq, ripgrep and the managed tools below. Uses Homebrew on macOS and apt on Ubuntu/Debian. |
 | `tools` | Node, pnpm, uv, Codex CLI, Claude Code, agent-browser and Heroku CLI. Installs under your home directory on macOS or glibc Linux, including distros where you supply your own system packages. |
-| `desktop` | Mac apps including Edge, Chrome, 1Password, Claude, Cursor and Docker Desktop. Adds ChatGPT and Codex desktop on Apple Silicon, plus Tinycast on macOS 26 or newer. |
+| `desktop` | Mac apps including Edge, Chrome, 1Password, Claude, Cursor, Rectangle and Docker Desktop. Adds ChatGPT and Codex desktop on Apple Silicon, plus Tinycast on macOS 26 or newer. |
 
 The tool profiles target arm64 and x86-64. Use an OS version supported by the underlying packages. Current desktop packages require macOS 14 or newer. Homebrew and apt packages follow their package sources. The versions in `manifests/` pin the managed tool releases, with separate Node checksums for each OS and architecture.
 
@@ -28,6 +28,8 @@ The tool profiles target arm64 and x86-64. Use an OS version supported by the un
 On a Mac with a graphical session, run `./bootstrap plan desktop` and `./bootstrap apply desktop` for the desktop apps. Use the standard macOS Terminal app for zsh and tmux. On a headless host, start work inside `tmux new-session -A -s work` to keep the session running when SSH disconnects.
 
 To use Tinycast on **⌘Space**, turn off **Show Spotlight search** in **System Settings → Keyboard → Keyboard Shortcuts → Spotlight**. Open Tinycast and set **Settings → General → Global Shortcuts → Show Launcher** to **⌘Space**. Enable **Launch at login** if you want the shortcut ready after a restart. [Apple keyboard shortcuts](https://support.apple.com/guide/mac-help/mchlp2864/mac) · [Tinycast setup](https://tinycast.dev/docs/)
+
+For Rectangle, grant **Accessibility** in **System Settings → Privacy & Security**. Use the Spectacle shortcut preset for **⌥⌘←/→** to snap to either half and **⌥⌘F** to maximize. Turn on **Launch on login** and let Rectangle take over edge dragging if macOS prompts about conflicting tiling. [Rectangle setup and shortcuts](https://github.com/rxhanson/Rectangle)
 
 ## Shell settings
 

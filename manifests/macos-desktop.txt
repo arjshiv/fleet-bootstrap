@@ -5,6 +5,7 @@ all|1password-cli|op
 all|claude|Claude.app
 all|cursor|Cursor.app
 all|docker-desktop|Docker.app
+all|rectangle|Rectangle.app
 arm64|chatgpt|ChatGPT.app
 arm64|codex-app|Codex.app
 arm64-26|tinycast|Tinycast.app
