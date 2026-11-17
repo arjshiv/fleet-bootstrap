@@ -1,0 +1,4 @@
+interface:
+  display_name: "Writing guide"
+  short_description: "Learn a writing voice and test guide improvements"
+  default_prompt: "Use $writing-guide to draft from my brief and improve my author guide using matched examples and my edits."
