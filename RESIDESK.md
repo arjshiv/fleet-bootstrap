@@ -32,4 +32,6 @@ Populate the ResiDesk `.env` from the approved dev secret source or transfer it 
 
 ## Smoke check
 
+For production investigation, the fleet's `cursor_prod` service connects to the existing read replica. Run `./bootstrap apply psql` and `./bootstrap doctor psql` from the fleet checkout if it is missing. Then run `bash Database/psql-check.sh` from this checkout before `psql service=cursor_prod`. Keep this access separate from the local development database and use SELECT queries only. The bootstrap does not change the project's `.env`.
+
 From the ResiDesk checkout, start `READONLY_CONTAINER=true SKIP_PROCESS_QUEUE=true NODE_ENV=development pnpm dev`. Open the frontend URL printed by Portless and verify that the backend's `/api/internal/health` and `/mcp/health` return HTTP 200. Stop the dev process after the check. Run feature-specific tests from the repository as needed.

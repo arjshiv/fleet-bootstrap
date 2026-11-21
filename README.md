@@ -4,16 +4,17 @@ Use this checkout to set up a fresh coding machine or check an existing one. The
 
 | Profile | Installs |
 | --- | --- |
-| `core` | Git, GitHub CLI, zsh, tmux, jq, ripgrep and the managed tools below. Uses Homebrew on macOS and apt on Ubuntu/Debian. |
+| `core` | Git, GitHub CLI, zsh, tmux, jq, ripgrep, PostgreSQL client, verified `cursor_prod` access and the managed tools below. Uses Homebrew on macOS and apt on Ubuntu/Debian. |
 | `tools` | Node, pnpm, uv, Codex CLI, Claude Code, agent-browser and Heroku CLI. Installs under your home directory on macOS or glibc Linux, including distros where you supply your own system packages. |
 | `desktop` | Mac apps including Edge, Chrome, 1Password, Claude, Cursor, Rectangle and Docker Desktop. Adds ChatGPT and Codex desktop on Apple Silicon, plus Tinycast on macOS 26 or newer. |
 | `skills` | Shared writing skills available to Codex, Claude Code, and agents that discover `~/.agents/skills`. Requires Python 3.9 or newer. |
+| `psql` | PostgreSQL client and the existing ResiDesk read-replica service. Requires Python 3.9 or newer and trusted SSH access for the first credential import. Installs no database server. |
 
 The tool profiles target arm64 and x86-64. Use an OS version supported by the underlying packages. Current desktop packages require macOS 14 or newer. Homebrew and apt packages follow their package sources. The versions in `manifests/` pin the managed tool releases, with separate Node checksums for each OS and architecture.
 
 ## First run
 
-1. On macOS, install Apple's Command Line Tools with `xcode-select --install` and set up [Homebrew](https://docs.brew.sh/Installation). Follow Homebrew's shell setup instructions. On Ubuntu/Debian, use an account with sudo access for apt. On other glibc Linux distros, install Bash, Git, curl, certificates, tar, coreutils and your terminal tools with the distro package manager, then use the `tools` profile.
+1. On macOS, install Apple's Command Line Tools with `xcode-select --install` and set up [Homebrew](https://docs.brew.sh/Installation). Follow Homebrew's shell setup instructions. On Ubuntu/Debian, use an account with sudo access for apt. On other glibc Linux distros, install Bash, Git, curl, certificates, tar, coreutils and your terminal tools with the distro package manager, then use the `tools` profile. For the default `core` setup, configure trusted SSH access to `ubuntu-hub` as described below, or set `FLEET_PSQL_SOURCE` to another machine with working `cursor_prod` access.
 2. Get this Git checkout onto the machine, then run the commands below from its root. To reuse the original over Tailscale, run `git clone <ssh-host-alias>:<absolute-path-to-fleet-bootstrap>` after you have SSH access to the host with the original checkout.
 3. Add the source line to the end of `~/.zshrc` or `~/.bashrc` after any other runtime managers. This gives the fleet versions precedence in new shells. For a custom install directory, export the same absolute `FLEET_HOME` before running the bootstrap and before sourcing `env.sh`.
 
@@ -37,6 +38,33 @@ For Rectangle, grant **Accessibility** in **System Settings → Privacy & Securi
 Run `./bootstrap plan skills`, `./bootstrap apply skills`, and `./bootstrap doctor skills` from this checkout to install or verify the versioned shared skills. The installer links each application's user skill directory to one local copy. It checks existing skill locations before making changes.
 
 Use `$writing-guide` in Codex or `/writing-guide` in Claude Code to draft from a substantive brief, build a personal voice guide, or evaluate changes against reserved writing samples. The skill includes an offline scorer for anonymous, order-swapped comparisons. Personal calibration requires the author's samples and an agreed evaluation budget.
+
+## Read-only PostgreSQL access
+
+The default `core` setup includes this step. To install or check it separately:
+
+```sh
+./bootstrap plan psql
+./bootstrap apply psql
+./bootstrap doctor psql
+```
+
+For a new machine, first configure Tailscale and trusted SSH access to `ubuntu-hub`, including its nonstandard SSH port. Verify the host fingerprint when enrolling it. Alternatively, set `FLEET_PSQL_SOURCE=mac16` or another configured SSH alias before running `apply`. The source needs Python 3, `~/.pg_service.conf` with a working `cursor_prod` section, and its matching credential in `~/.pgpass`.
+
+The installer transfers only that service and matching credential over SSH. It keeps credentials out of the repository, process arguments, and output. It writes owner-only `0600` files, preserves unrelated PostgreSQL services and password entries, and reuses an existing `cursor_prod` without overwriting its credentials. Each `apply` and `doctor` performs a SELECT and verifies TLS, `pg_is_in_recovery() = true`, and `transaction_read_only = on`. A new import must pass these checks before it is published. A missing SSH source, failed connection, or writable endpoint makes setup fail rather than report success.
+
+Read-only behavior comes from the PostgreSQL replica. The installer changes no database settings, roles, permissions, or data and adds no `PGOPTIONS` overrides. Existing connection problems require review rather than automatic credential replacement. Credential rotation is a separate action.
+
+On a fresh Mac, the client is Homebrew's `libpq`, exposed by the fleet shell settings. On Ubuntu/Debian, it is `postgresql-client`. Existing clients are reused by the standalone profile. Other Linux distributions must supply their own `psql`. Activate the fleet PATH in new shells as described above.
+
+From a ResiDesk checkout, use its normal preflight and service:
+
+```sh
+bash Database/psql-check.sh
+psql service=cursor_prod
+```
+
+See PostgreSQL's [service-file documentation](https://www.postgresql.org/docs/current/libpq-pgservice.html).
 
 ## Shell settings
 

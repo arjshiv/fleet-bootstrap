@@ -2,3 +2,6 @@
 .env.*
 *.env
 .DS_Store
+.pgpass
+.pg_service.conf
+__pycache__/

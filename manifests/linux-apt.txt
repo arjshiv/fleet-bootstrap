@@ -7,3 +7,5 @@ jq
 ripgrep
 tmux
 zsh
+postgresql-client
+python3
