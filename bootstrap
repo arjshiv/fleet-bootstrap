@@ -83,6 +83,10 @@ psql_setup() {
     fi
   fi
   python3 "$root/install-psql.py" "$action"
+  if [[ $action == apply ]]; then
+    mkdir -p "$FLEET_HOME"
+    cp "$root/shell/env.sh" "$FLEET_HOME/env.sh"
+  fi
 }
 
 desktop_entries() {
