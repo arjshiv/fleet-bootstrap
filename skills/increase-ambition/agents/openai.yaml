@@ -1,0 +1,4 @@
+interface:
+  display_name: "Increase ambition"
+  short_description: "Explore five increasingly ambitious AI-native ideas"
+  default_prompt: "Use $increase-ambition to suggest five AI-native ways to take this project into its next phase, each more ambitious than the last."

@@ -7,7 +7,7 @@ Use this checkout to set up a fresh coding machine or check an existing one. The
 | `core` | Git, GitHub CLI, zsh, tmux, jq, ripgrep, PostgreSQL client, verified `cursor_prod` access and the managed tools below. Uses Homebrew on macOS and apt on Ubuntu/Debian. |
 | `tools` | Node, pnpm, uv, Codex CLI, Claude Code, agent-browser and Heroku CLI. Installs under your home directory on macOS or glibc Linux, including distros where you supply your own system packages. |
 | `desktop` | Mac apps including Edge, Chrome, 1Password, Claude, Cursor, Rectangle and Docker Desktop. Adds ChatGPT and Codex desktop on Apple Silicon, plus Tinycast on macOS 26 or newer. |
-| `skills` | Shared writing skills available to Codex, Claude Code, and agents that discover `~/.agents/skills`. Requires Python 3.9 or newer. |
+| `skills` | Shared writing and project-ideation skills available to Codex, Claude Code, and agents that discover `~/.agents/skills`. Requires Python 3.9 or newer. |
 | `psql` | PostgreSQL client and the existing ResiDesk read-replica service. Requires Python 3.9 or newer and trusted SSH access for the first credential import. Installs no database server. |
 
 The tool profiles target arm64 and x86-64. Use an OS version supported by the underlying packages. Current desktop packages require macOS 14 or newer. Homebrew and apt packages follow their package sources. The versions in `manifests/` pin the managed tool releases, with separate Node checksums for each OS and architecture.
@@ -33,11 +33,15 @@ To use Tinycast on **⌘Space**, turn off **Show Spotlight search** in **System 
 
 For Rectangle, grant **Accessibility** in **System Settings → Privacy & Security**. Use the Spectacle shortcut preset for **⌥⌘←/→** to snap to either half and **⌥⌘F** to maximize. Turn on **Launch on login** and let Rectangle take over edge dragging if macOS prompts about conflicting tiling. [Rectangle setup and shortcuts](https://github.com/rxhanson/Rectangle)
 
-## Shared writing skills
+## Shared skills
 
 Run `./bootstrap plan skills`, `./bootstrap apply skills`, and `./bootstrap doctor skills` from this checkout to install or verify the versioned shared skills. The installer links each application's user skill directory to one local copy. It checks existing skill locations before making changes.
 
 Use `$writing-guide` in Codex or `/writing-guide` in Claude Code to draft from a substantive brief, build a personal voice guide, or evaluate changes against reserved writing samples. The skill includes an offline scorer for anonymous, order-swapped comparisons. Personal calibration requires the author's samples and an agreed evaluation budget.
+
+Use `$increase-ambition` in Codex or `/increase-ambition` in Claude Code to propose five increasingly ambitious AI-native directions for an existing project. Each idea includes a concrete user experience, the AI capability that enables it, and an experiment to test its biggest assumption. The skill proposes ideas before implementation.
+
+The standalone `SKILL.md` is also available as a [public GitHub gist](https://gist.github.com/arjshiv/861b9753f11dd773e94041e2bc54963f).
 
 ## Read-only PostgreSQL access
 
